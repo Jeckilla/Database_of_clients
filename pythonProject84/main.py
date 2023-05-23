@@ -1,6 +1,10 @@
 import psycopg2
 
-class Table():
+
+class Table:
+    def __init__(self):
+        pass
+
     def drop_tables(self, name_of_table):
         with conn.cursor() as self.cur:
             self.cur.execute("""
@@ -47,7 +51,7 @@ class Table():
         with conn.cursor() as self.cur:
             self.cur.execute("""
                     DELETE FROM phone_numbers WHERE client_id=%s AND phone_number=%s;
-                    """, (client_id,phone_number))
+                    """, (client_id, phone_number))
         return self.cur.fetchone()
 
     def delete_client(self, conn, client_id):
