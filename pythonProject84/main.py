@@ -10,10 +10,8 @@ class Table(object):
         self.cursor = conn.cursor()
 
     def drop_tables(self, name_of_table):
-        self.cursor.execute("""
-                    DROP TABLE name_of_table=%s;
-                    """, (name_of_table,))
-        self.connection.commit()
+        with self.connection.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS {name_of_table};")
 
     def create_table(self, name_of_table, column1, column2, column3, column4=None, column5=None):
         self.cursor.execute(f"""
@@ -25,7 +23,6 @@ class Table(object):
             {column5} BIGINT
             );
             """)
-        self.connection.commit()
 
     def table_with_relations(self, name_of_table, column1, column2, column3):
 
@@ -36,7 +33,7 @@ class Table(object):
                 {column3} INTEGER NOT NULL REFERENCES clients(id)
                 );
                 """)
-        self.connection.commit()
+
 
     def add_client(self, first_name, surname, email, phone_number: int = None):
         self.cursor.execute("""
@@ -51,7 +48,7 @@ class Table(object):
                 INSERT INTO phone_numbers (phone_number, client_id)
                 VALUES (%s, %s);
                 """, (phone_number, client_id))
-            self.connection.commit()
+
 
     def add_phone(self, client_id, phone_number):
             self.cursor.execute("""
@@ -73,7 +70,7 @@ class Table(object):
                         UPDATE phone_numbers SET phone_number=%s WHERE client_id=%s AND phone_id=%s;
                         """, (phone_number, client_id, phone_id))
                 return f"Данные о клиенте {client_id} изменены"
-            self.connection.commit()
+
 
     def change_client(self):
         client_id = input("Введите id клиента, в данные которого необходимо внести изменения: ")
@@ -85,7 +82,8 @@ class Table(object):
             if result is None:
                 print("Клиент с таким номером не найден")
             else:
-                column_name = input("Какие данные о клиенте вы хотите изменить: (first_name, surname, email, phone_number) ")
+                column_name = input("Какие данные о клиенте вы хотите изменить: (first_name, "
+                                    "surname, email, phone_number) ")
                 if column_name not in ['first_name', 'surname', 'email', 'phone_number']:
                     print("Такого столбца не существует")
                 else:
@@ -107,7 +105,7 @@ class Table(object):
                             UPDATE phone_numbers SET phone_number=%s WHERE client_id=%s;
                             """, (value, client_id))
                     return f'Данные о клиенте id = {client_id} изменены'
-            self.connection.commit()
+
 
     def delete_phone(self, client_id, phone_number):
         self.cursor.execute("""
@@ -122,7 +120,7 @@ class Table(object):
                         DELETE FROM clients WHERE phone_number=%s;
                         """, (client_id, phone_number, phone_number))
             return f"Номер телефона {phone_number} клиента {client_id} удален из таблиц"
-        self.connection.commit()
+
 
     def delete_client(self, client_id):
         self.cursor.execute("""
@@ -138,7 +136,7 @@ class Table(object):
                         """, (client_id, client_id))
 
             return f'Клиент {client_id} удален из таблицы'
-        self.connection.commit()
+
 
     def find_client(self):
         column_name, query = input("Введите столбец, по которому необходимо произвести поиск:  "), \
@@ -189,7 +187,7 @@ class Table(object):
                     print(result4)
                 else:
                     print("Ничего не найдено")
-                self.connection.commit()
+
 
     def select_all_data(self):
         self.cursor.execute("""
@@ -222,6 +220,8 @@ if __name__ == '__main__':
             # data.add_phone(4, 89113452719)
 
             # data.select_all_data()
+            # data.create_table("test", "id_test", "name_test", "surname_test", "email_test")
+            # data.drop_tables('test')
 
 # cursor.close()
 # conn.close()
