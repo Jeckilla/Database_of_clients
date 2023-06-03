@@ -1,5 +1,7 @@
 import psycopg2
+
 from connection import conn
+
 
 class Table(object):
 
@@ -7,13 +9,11 @@ class Table(object):
         self.connection = conn
         self.cursor = conn.cursor()
 
-
     def drop_tables(self, name_of_table):
         self.cursor.execute("""
                     DROP TABLE name_of_table=%s;
                     """, (name_of_table,))
         self.connection.commit()
-
 
     def create_table(self, name_of_table, column1, column2, column3, column4=None, column5=None):
         self.cursor.execute(f"""
@@ -27,8 +27,7 @@ class Table(object):
             """)
         self.connection.commit()
 
-
-    def table_with_relations(self, name_of_table, column1, column2, column3=None):
+    def table_with_relations(self, name_of_table, column1, column2, column3):
 
         self.cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {name_of_table}(
@@ -39,7 +38,6 @@ class Table(object):
                 """)
         self.connection.commit()
 
-
     def add_client(self, first_name, surname, email, phone_number: int = None):
         self.cursor.execute("""
                 INSERT INTO clients (first_name, surname, email)
@@ -47,14 +45,20 @@ class Table(object):
                 RETURNING id;
                 """, (first_name, surname, email))
         client_id = self.cursor.fetchone()[0]
-        self.connection.commit()
-        if phone_number != None:
+
+        if phone_number is not None:
             self.cursor.execute("""
                 INSERT INTO phone_numbers (phone_number, client_id)
                 VALUES (%s, %s);
                 """, (phone_number, client_id))
             self.connection.commit()
 
+    def add_phone(self, client_id, phone_number):
+            self.cursor.execute("""
+                    INSERT INTO phone_numbers (phone_number, client_id)
+                    VALUES (%s, %s);
+                    """, (phone_number, client_id))
+            return f'Номер телефона {phone_number} успешно добавлен клиенту {client_id}'
 
     def update_phone(self, client_id, phone_id, phone_number):
         with self.connection.cursor() as cursor:
@@ -71,39 +75,39 @@ class Table(object):
                 return f"Данные о клиенте {client_id} изменены"
             self.connection.commit()
 
-
     def change_client(self):
         client_id = input("Введите id клиента, в данные которого необходимо внести изменения: ")
-        column_name = input("Какие данные о клиенте вы хотите изменить: (first_name, surname, email, phone_number) ")
-        value = input("Введите здесь значение, на которое необходимо изменить данные: ")
-        self.cursor.execute("""
-                    SELECT id FROM clients WHERE id=%s;
-                    """, (client_id,))
-        result = self.cursor.fetchone()
-        if result is None:
-            print("Клиент с таким номером не найден")
-            if column_name not in ['first_name', 'surname', 'email', 'phone_number']:
-                print("Такого столбца не существует")
+        with self.connection.cursor() as self.cursor:
+            self.cursor.execute("""
+                        SELECT id FROM clients WHERE id=%s;
+                        """, (client_id,))
+            result = self.cursor.fetchone()
+            if result is None:
+                print("Клиент с таким номером не найден")
             else:
-                if column_name == 'first_name':
-                    self.cursor.execute("""
-                            UPDATE clients  SET first_name=%s WHERE id=%s;
+                column_name = input("Какие данные о клиенте вы хотите изменить: (first_name, surname, email, phone_number) ")
+                if column_name not in ['first_name', 'surname', 'email', 'phone_number']:
+                    print("Такого столбца не существует")
+                else:
+                    value = input("Введите здесь значение, на которое необходимо изменить данные: ")
+                    if column_name == 'first_name':
+                        self.cursor.execute("""
+                                UPDATE clients SET first_name=%s WHERE id=%s;
+                                """, (value, client_id))
+                    elif column_name == 'surname':
+                        self.cursor.execute("""
+                            UPDATE clients SET surname=%s WHERE id=%s;
                             """, (value, client_id))
-                elif column_name == 'surname':
-                    self.cursor.execute("""
-                        UPDATE clients  SET surname=%s WHERE id=%s;
-                        """, (value, client_id))
-                elif column_name == 'email':
-                    self.cursor.execute("""
-                        UPDATE clients SET email=%s WHERE id=%s;
-                        """, (value, client_id))
-                elif column_name == 'phone_number':
-                    self.cursor.execute("""
-                        UPDATE phone_numbers SET phone_number=%s WHERE client_id=%s;
-                        """, (value, client_id))
-                return f'Данные о клиенте id = {client_id} изменены'
-        self.connection.commit()
-
+                    elif column_name == 'email':
+                        self.cursor.execute("""
+                            UPDATE clients SET email=%s WHERE id=%s;
+                            """, (value, client_id))
+                    elif column_name == 'phone_number':
+                        self.cursor.execute("""
+                            UPDATE phone_numbers SET phone_number=%s WHERE client_id=%s;
+                            """, (value, client_id))
+                    return f'Данные о клиенте id = {client_id} изменены'
+            self.connection.commit()
 
     def delete_phone(self, client_id, phone_number):
         self.cursor.execute("""
@@ -120,7 +124,6 @@ class Table(object):
             return f"Номер телефона {phone_number} клиента {client_id} удален из таблиц"
         self.connection.commit()
 
-
     def delete_client(self, client_id):
         self.cursor.execute("""
                         SELECT client_id FROM phone_numbers WHERE client_id=%s;
@@ -136,7 +139,6 @@ class Table(object):
 
             return f'Клиент {client_id} удален из таблицы'
         self.connection.commit()
-
 
     def find_client(self):
         column_name, query = input("Введите столбец, по которому необходимо произвести поиск:  "), \
@@ -199,23 +201,27 @@ class Table(object):
             print(row)
 
 
-
 if __name__ == '__main__':
-    data = Table()
-    # data.create_table("clients", "id", "first_name", "surname", "email", "phone_number")
-    # data.table_with_relations("phone_numbers", "phone_id", "phone_number", "client_id")
-    # data.add_client('Ivan', 'Smirnov', 'vanya_vanyusha@mail.ru', 8960575484)
-    # data.add_client('Sergey', 'Shapoval', 'shapa@gmail.com', 89996263539)
-    # data.add_client('Alexander', 'Ivanov', 'ivanovalex@yandex.ru', 89215476623)
-    # data.add_client('Maria', 'Lavreneva', 'lavmar@yandex.ru', 89042564917)
-    # data.add_client('Elena', 'Konstantinova', 'konstanta@yandex.ru', 89215976314)
-    # data.add_client('Anna', 'Smirnova', 'anna2022@yandex.ru', 89995874963)
-    # data.add_client('Tamara', 'Petrova', 'tamara@yandex.ru', 89053747263)
-    # data.find_client()
-    # data.delete_client(8)
-    data.select_all_data()
+    with conn as conn:
+        with conn.cursor() as cursor:
+            data = Table()
+            # data.create_table("clients", "id", "first_name", "surname", "email", "phone_number")
+            # data.table_with_relations("phone_numbers", "phone_id", "phone_number", "client_id")
+            # data.add_client('Ivan', 'Smirnov', 'vanya_vanyusha@mail.ru', 8960575484)
+            # data.add_client('Sergey', 'Shapoval', 'shapa@gmail.com', 89996263539)
+            # data.add_client('Alexander', 'Ivanov', 'ivanovalex@yandex.ru', 89215476623)
+            # data.add_client('Maria', 'Lavreneva', 'lavmar@yandex.ru', 89042564917)
+            # data.add_client('Elena', 'Konstantinova', 'konstanta@yandex.ru', 89215976314)
+            # data.add_client('Anna', 'Smirnova', 'anna2022@yandex.ru', 89995874963)
+            # data.add_client('Tamara', 'Petrova', 'tamara@yandex.ru', 89053747263)
+            # data.find_client()
+            # data.delete_client(8)
+            # data.update_phone(4, 4, 89000000097)
+            # data.change_client()
+            # data.delete_phone(6, 89995874963)
+            # data.add_phone(4, 89113452719)
 
-
+            # data.select_all_data()
 
 # cursor.close()
 # conn.close()
